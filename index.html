@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Safety Keychain</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --card: #1a1a26;
+    --border: #2a2a3e;
+    --accent: #ff3c5f;
+    --accent2: #7c3aed;
+    --accent3: #06d6a0;
+    --text: #f0f0f8;
+    --muted: #6b6b8a;
+    --warn: #f59e0b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+    background-size: 30px 30px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 34px;
+    height: 34px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    box-shadow: 0 0 20px rgba(255,60,95,0.3);
+  }
+
+  .logo-text {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+  }
+
+  .logo-sub {
+    font-size: 9px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: block;
+    margin-top: -2px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(6,214,160,0.1);
+    border: 1px solid rgba(6,214,160,0.2);
+    border-radius: 20px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    color: var(--accent3);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .status-pill.disconnected {
+    background: rgba(255,60,95,0.1);
+    border-color: rgba(255,60,95,0.2);
+    color: var(--accent);
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent3);
+    animation: pulse-dot 2s infinite;
+  }
+
+  .status-pill.disconnected .status-dot {
+    background: var(--accent);
+    animation: none;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* ── NAV TABS ── */
+  .nav {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 63px;
+    z-index: 99;
+  }
+
+  .nav-tab {
+    flex: 1;
+    padding: 12px 4px 10px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    user-select: none;
+  }
+
+  .nav-tab .nav-icon { font-size: 18px; }
+
+  .nav-tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; padding: 20px; animation: fadeIn 0.25s ease; }
+  .screen.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── BUTTON: FLIC CONNECT ── */
+  .flic-btn-visual {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #1e1e2e, #2a2a3e);
+    border: 3px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    box-shadow: 
+      0 8px 32px rgba(0,0,0,0.5),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+    user-select: none;
+  }
+
+  .flic-btn-visual:active {
+    transform: scale(0.93);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  }
+
+  .flic-btn-visual.connected {
+    border-color: var(--accent3);
+    box-shadow: 
+      0 8px 32px rgba(0,0,0,0.5),
+      0 0 30px rgba(6,214,160,0.2),
+      inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .flic-btn-visual.flashing {
+    animation: flash-btn 0.5s ease;
+  }
+
+  @keyframes flash-btn {
+    0% { box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 30px rgba(255,60,95,0.2); }
+    50% { box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 60px rgba(255,60,95,0.8); transform: scale(0.95); }
+    100% { box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 30px rgba(255,60,95,0.2); }
+  }
+
+  .flic-inner {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #252535, #1a1a28);
+    border: 2px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+
+  .connect-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(124,58,237,0.3);
+  }
+
+  .connect-btn:active { transform: scale(0.98); }
+  .connect-btn:disabled {
+    background: var(--border);
+    color: var(--muted);
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+
+  .connect-btn.danger {
+    background: linear-gradient(135deg, #dc2626, var(--accent));
+    box-shadow: 0 4px 20px rgba(220,38,38,0.3);
+  }
+
+  /* ── ACTION ROWS ── */
+  .action-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .action-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .action-row:first-of-type { padding-top: 0; }
+
+  .action-badge {
+    min-width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .badge-single { background: rgba(6,214,160,0.12); color: var(--accent3); border: 1px solid rgba(6,214,160,0.2); }
+  .badge-double { background: rgba(124,58,237,0.12); color: #a78bfa; border: 1px solid rgba(124,58,237,0.2); }
+  .badge-hold { background: rgba(255,60,95,0.12); color: var(--accent); border: 1px solid rgba(255,60,95,0.2); }
+
+  .action-info { flex: 1; }
+  .action-label { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .action-desc { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+  .action-icon { font-size: 20px; }
+
+  /* ── TEST BUTTONS ── */
+  .test-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .test-btn {
+    padding: 10px 4px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .test-btn:active { transform: scale(0.95); }
+  .test-btn.t1:active { background: rgba(6,214,160,0.15); border-color: var(--accent3); }
+  .test-btn.t2:active { background: rgba(124,58,237,0.15); border-color: var(--accent2); }
+  .test-btn.t3:active { background: rgba(255,60,95,0.15); border-color: var(--accent); }
+  .test-btn span { font-size: 18px; }
+
+  /* ── TOAST ── */
+  .toast-container {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 999;
+    width: calc(100% - 40px);
+    max-width: 390px;
+    pointer-events: none;
+  }
+
+  .toast {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    animation: slideDown 0.3s ease forwards;
+    pointer-events: all;
+  }
+
+  .toast.removing { animation: slideUp 0.3s ease forwards; }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideUp {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-20px); }
+  }
+
+  .toast-icon { font-size: 22px; margin-top: 1px; }
+  .toast-body { flex: 1; }
+  .toast-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .toast-msg { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; line-height: 1.4; }
+
+  .toast.success { border-left: 3px solid var(--accent3); }
+  .toast.warning { border-left: 3px solid var(--warn); }
+  .toast.danger { border-left: 3px solid var(--accent); }
+  .toast.info { border-left: 3px solid var(--accent2); }
+
+  /* ── PROFILE FORM ── */
+  .field {
+    margin-bottom: 14px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .field input, .field select {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .field input:focus, .field select:focus {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.1);
+  }
+
+  .field select option { background: var(--surface); }
+
+  .save-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, var(--accent3), #059669);
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(6,214,160,0.25);
+    margin-top: 4px;
+  }
+
+  .save-btn:active { transform: scale(0.98); }
+
+  /* ── QR CODE ── */
+  .qr-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  #qr-display {
+    background: white;
+    padding: 16px;
+    border-radius: 16px;
+    display: inline-flex;
+  }
+
+  .qr-info {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    line-height: 1.5;
+  }
+
+  .share-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .share-btn:active { transform: scale(0.97); }
+
+  /* ── CONTACTS ── */
+  .contact-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .contact-item:last-child { border-bottom: none; }
+
+  .contact-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .contact-info { flex: 1; }
+  .contact-name { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .contact-phone { font-size: 11px; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+  .contact-tag {
+    font-size: 9px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(255,60,95,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(255,60,95,0.2);
+  }
+
+  .contact-tag.secondary {
+    background: rgba(124,58,237,0.12);
+    color: #a78bfa;
+    border-color: rgba(124,58,237,0.2);
+  }
+
+  .del-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .del-btn:active { background: rgba(255,60,95,0.1); border-color: var(--accent); color: var(--accent); }
+
+  /* add contact form */
+  .add-contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .add-row { display: flex; gap: 8px; }
+
+  .add-contact-form input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .add-contact-form input:focus { border-color: var(--accent2); }
+
+  .add-contact-btn {
+    padding: 11px 18px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    color: white;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+
+  .add-contact-btn:active { transform: scale(0.97); }
+
+  /* ── EMERGENCY SCREEN overlay ── */
+  .emergency-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(255,60,95,0.12);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.3s ease;
+  }
+
+  .emergency-overlay.active { display: flex; }
+
+  .emergency-card {
+    background: var(--card);
+    border: 2px solid var(--accent);
+    border-radius: 24px;
+    padding: 32px 24px;
+    text-align: center;
+    width: calc(100% - 40px);
+    max-width: 360px;
+    box-shadow: 0 0 60px rgba(255,60,95,0.3);
+    animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  @keyframes pop {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .emergency-icon { font-size: 52px; margin-bottom: 12px; animation: shake 0.5s infinite; }
+
+  @keyframes shake {
+    0%, 100% { transform: rotate(0); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(5deg); }
+  }
+
+  .emergency-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  .emergency-msg {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+
+  .dismiss-btn {
+    padding: 12px 28px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+
+  .section-sub {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 18px;
+  }
+
+  /* ── STEP GUIDE ── */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .step {
+    display: flex;
+    gap: 14px;
+    position: relative;
+  }
+
+  .step-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent2);
+    color: white;
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .step-line {
+    width: 2px;
+    flex: 1;
+    background: var(--border);
+    margin: 4px 0;
+    min-height: 20px;
+  }
+
+  .step:last-child .step-line { display: none; }
+
+  .step-content {
+    padding-bottom: 18px;
+    flex: 1;
+  }
+
+  .step-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 3px;
+    margin-top: 4px;
+  }
+
+  .step-desc {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    line-height: 1.5;
+  }
+
+  code {
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 10px;
+    color: #a78bfa;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff3c5f">
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">🔑</div>
+    <div>
+      <div class="logo-text">Safety Keychain</div>
+      <span class="logo-sub">Personal Safety System</span>
+    </div>
+  </div>
+  <div class="status-pill disconnected" id="flic-status" onclick="toggleConnect()">
+    <div class="status-dot"></div>
+    <span id="status-text">NO FLIC</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <div class="nav-tab active" onclick="showScreen('button')" id="tab-button">
+    <span class="nav-icon">🔘</span>
+    BUTTON
+  </div>
+  <div class="nav-tab" onclick="showScreen('profile')" id="tab-profile">
+    <span class="nav-icon">👤</span>
+    PROFILE
+  </div>
+  <div class="nav-tab" onclick="showScreen('qr')" id="tab-qr">
+    <span class="nav-icon">⬛</span>
+    QR CODE
+  </div>
+  <div class="nav-tab" onclick="showScreen('contacts')" id="tab-contacts">
+    <span class="nav-icon">📞</span>
+    CONTACTS
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ══ SCREEN: BUTTON ══ -->
+<div class="screen active" id="screen-button">
+  <div class="section-label">Flic Button</div>
+  <div class="section-sub">Connect & configure your safety button</div>
+
+  <div class="card">
+    <div class="card-title">🔘 Physical Button</div>
+    <div class="flic-btn-visual" id="flic-visual" onclick="simulatePress('single')">
+      <div class="flic-inner">🔘</div>
+    </div>
+    <button class="connect-btn" id="connect-btn" onclick="toggleConnect()">
+      Connect Flic Button
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚡ Button Actions</div>
+    <div class="action-row">
+      <div class="action-badge badge-single">1×<br>TAP</div>
+      <div class="action-info">
+        <div class="action-label">Check In</div>
+        <div class="action-desc">Sends "I'm okay" SMS to all contacts</div>
+      </div>
+      <div class="action-icon">💬</div>
+    </div>
+    <div class="action-row">
+      <div class="action-badge badge-double">2×<br>TAP</div>
+      <div class="action-info">
+        <div class="action-label">Share Location</div>
+        <div class="action-desc">Sends GPS link via SMS</div>
+      </div>
+      <div class="action-icon">📍</div>
+    </div>
+    <div class="action-row">
+      <div class="action-badge badge-hold">HOLD<br>3s</div>
+      <div class="action-info">
+        <div class="action-label">🚨 Emergency</div>
+        <div class="action-desc">SMS + location + calls primary contact</div>
+      </div>
+      <div class="action-icon">🆘</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🧪 Simulate Press</div>
+    <div class="test-btns">
+      <button class="test-btn t1" onclick="simulatePress('single')">
+        <span>💬</span>
+        SINGLE<br>TAP
+      </button>
+      <button class="test-btn t2" onclick="simulatePress('double')">
+        <span>📍</span>
+        DOUBLE<br>TAP
+      </button>
+      <button class="test-btn t3" onclick="simulatePress('hold')">
+        <span>🚨</span>
+        HOLD<br>3 SEC
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📋 Setup Guide</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Install Flic App</div>
+          <div class="step-desc">Download the official Flic app from App Store or Google Play</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Pair Your Button</div>
+          <div class="step-desc">Open Flic app → tap + → press your physical Flic button to pair</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Install Flic SDK</div>
+          <div class="step-desc">Add <code>flic2lib-android</code> or <code>flic2lib-ios</code> to your project</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Fill Your Profile</div>
+          <div class="step-desc">Go to Profile tab → fill info → QR auto-generates</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div>
+        <div class="step-content">
+          <div class="step-title">Add Contacts</div>
+          <div class="step-desc">Go to Contacts tab → add loved ones' numbers</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: PROFILE ══ -->
+<div class="screen" id="screen-profile">
+  <div class="section-label">My Profile</div>
+  <div class="section-sub">This info is encoded in your QR code</div>
+
+  <div class="card">
+    <div class="card-title">👤 Personal Info</div>
+    <div class="field">
+      <label>Full Name</label>
+      <input type="text" id="p-name" placeholder="Kartik Pandya" oninput="updateQR()">
+    </div>
+    <div class="field">
+      <label>Phone Number</label>
+      <input type="tel" id="p-phone" placeholder="+1 480-XXX-XXXX" oninput="updateQR()">
+    </div>
+    <div class="field">
+      <label>Address</label>
+      <input type="text" id="p-address" placeholder="Phoenix, AZ" oninput="updateQR()">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🏥 Medical Info</div>
+    <div class="field">
+      <label>Blood Type</label>
+      <select id="p-blood" onchange="updateQR()">
+        <option value="">Select blood type</option>
+        <option>A+</option><option>A-</option>
+        <option>B+</option><option>B-</option>
+        <option>AB+</option><option>AB-</option>
+        <option>O+</option><option>O-</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Allergies / Conditions</label>
+      <input type="text" id="p-medical" placeholder="e.g. Penicillin allergy, Diabetic" oninput="updateQR()">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🆘 Emergency Contact</div>
+    <div class="field">
+      <label>Primary Emergency Contact Name</label>
+      <input type="text" id="p-ec-name" placeholder="Mom / Dad / Partner" oninput="updateQR()">
+    </div>
+    <div class="field">
+      <label>Primary Emergency Contact Phone</label>
+      <input type="tel" id="p-ec-phone" placeholder="+1 480-XXX-XXXX" oninput="updateQR()">
+    </div>
+    <button class="save-btn" onclick="saveProfile()">💾 Save Profile & Update QR</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN: QR ══ -->
+<div class="screen" id="screen-qr">
+  <div class="section-label">Your QR Code</div>
+  <div class="section-sub">Scan to view emergency info</div>
+
+  <div class="card">
+    <div class="card-title">🔗 Dynamic Emergency Profile Link</div>
+    <div class="field">
+      <label>Fixed QR Destination URL</label>
+      <input type="url" id="qr-url" placeholder="Paste Google Site / Google Doc public emergency profile link" oninput="saveQrUrl(); updateQR();">
+    </div>
+    <div style="font-size:12px; color:var(--muted); font-family:'Space Mono',monospace; line-height:1.7;">
+      Use a public Google Site/Doc as your emergency profile. Print this QR once. Later, edit that Google Site/Doc from your phone and the same printed QR will show updated information.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="qr-wrapper">
+      <div id="qr-display"></div>
+      <div class="qr-info" id="qr-info">
+        Paste your emergency profile URL to generate QR code
+      </div>
+      <button class="share-btn" onclick="shareQR()">
+        🔗 Share QR Link
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">ℹ️ What This QR Opens</div>
+    <div id="qr-preview" style="font-size:12px; font-family:'Space Mono',monospace; color:var(--muted); line-height:1.7;">
+      Paste your emergency profile link above. The QR stores the link, not the private data.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🖨️ Print on Keychain</div>
+    <div style="font-size:12px; color:var(--muted); font-family:'Space Mono',monospace; line-height:1.7;">
+      1. Create a public emergency profile page using Google Sites/Docs<br>
+      2. Paste that page link above<br>
+      3. Print this QR at 1.5" × 1.5" and stick it on the back<br>
+      4. Later update the Google page from your phone — the printed QR stays the same
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: CONTACTS ══ -->
+<div class="screen" id="screen-contacts">
+  <div class="section-label">Loved Ones</div>
+  <div class="section-sub">Who receives your alerts</div>
+
+  <div class="card">
+    <div class="card-title">➕ Add Contact</div>
+    <div class="add-contact-form">
+      <div class="add-row">
+        <input type="text" id="c-name" placeholder="Name (e.g. Mom)">
+        <input type="tel" id="c-phone" placeholder="+1 480-XXX-XXXX" style="flex:1.4">
+      </div>
+      <button class="add-contact-btn" onclick="addContact()">+ Add</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">👥 Your Contacts</div>
+    <div id="contacts-list">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📬 Alert Types Per Contact</div>
+    <div style="font-size:12px; color:var(--muted); font-family:'Space Mono',monospace; line-height:1.8;">
+      🟢 Single tap → all contacts get "I'm okay" SMS<br>
+      🟣 Double tap → all contacts get your GPS link<br>
+      🔴 Hold 3s → all contacts get emergency SMS<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ app calls PRIMARY contact
+    </div>
+  </div>
+</div>
+
+<!-- EMERGENCY OVERLAY -->
+<div class="emergency-overlay" id="emergency-overlay">
+  <div class="emergency-card">
+    <div class="emergency-icon">🚨</div>
+    <div class="emergency-title">EMERGENCY SENT</div>
+    <div class="emergency-msg" id="emergency-msg">
+      SMS + location sent to all contacts.<br>
+      Calling primary contact now...
+    </div>
+    <button class="dismiss-btn" onclick="dismissEmergency()">Dismiss</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let flicConnected = false;
+let profile = JSON.parse(localStorage.getItem('sk_profile') || '{}');
+let contacts = JSON.parse(localStorage.getItem('sk_contacts') || '[{"name":"Mom","phone":"+1 480-555-0101","primary":true},{"name":"Dad","phone":"+1 480-555-0102","primary":false}]');
+let qrInstance = null;
+let qrUrl = localStorage.getItem('sk_qr_url') || '';
+
+// ── INIT ──
+window.onload = () => {
+  restoreProfile();
+  renderContacts();
+  const qrInput = document.getElementById('qr-url');
+  if (qrInput) qrInput.value = qrUrl;
+  updateQR();
+  handleIncomingAction();
+  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+};
+
+// ── NAVIGATION ──
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'qr') updateQR();
+}
+
+// ── FLIC CONNECT SIMULATION ──
+function toggleConnect() {
+  if (!flicConnected) {
+    showToast('info', '🔵 Scanning...', 'Hold your Flic button until it flashes blue');
+    setTimeout(() => {
+      flicConnected = true;
+      document.getElementById('flic-status').classList.remove('disconnected');
+      document.getElementById('status-text').textContent = 'FLIC ON';
+      document.getElementById('connect-btn').textContent = '✅ Flic Connected — Tap to Disconnect';
+      document.getElementById('connect-btn').classList.add('danger');
+      document.getElementById('flic-visual').classList.add('connected');
+      showToast('success', '✅ Flic Connected!', 'Button is ready. Try the simulate buttons below.');
+    }, 2000);
+  } else {
+    flicConnected = false;
+    document.getElementById('flic-status').classList.add('disconnected');
+    document.getElementById('status-text').textContent = 'NO FLIC';
+    document.getElementById('connect-btn').textContent = 'Connect Flic Button';
+    document.getElementById('connect-btn').classList.remove('danger');
+    document.getElementById('flic-visual').classList.remove('connected');
+    showToast('warning', '🔴 Disconnected', 'Flic button has been disconnected');
+  }
+}
+
+// ── REAL DEVICE ACTIONS ──
+function cleanPhoneNumber(phone) {
+  return (phone || '').replace(/[^+0-9]/g, '');
+}
+
+function getPrimaryContact() {
+  return contacts.find(c => c.primary) || contacts[0] || null;
+}
+
+function openSMS(phone, message) {
+  const number = cleanPhoneNumber(phone);
+  if (!number) { showToast('warning', '⚠️ No Contact', 'Add a loved one in Contacts first'); return; }
+  const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const separator = isiOS ? '&' : '?';
+  window.location.href = `sms:${number}${separator}body=${encodeURIComponent(message)}`;
+}
+
+function makeCall(phone) {
+  const number = cleanPhoneNumber(phone);
+  if (!number) { showToast('warning', '⚠️ No Contact', 'Add a primary contact first'); return; }
+  window.location.href = `tel:${number}`;
+}
+
+function getCurrentLocation(callback) {
+  if (!navigator.geolocation) {
+    callback('https://maps.google.com/?q=33.4484,-112.0740');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      callback(`https://maps.google.com/?q=${lat},${lng}`);
+    },
+    () => callback('Location permission denied/unavailable'),
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function sendCheckIn() {
+  const primary = getPrimaryContact();
+  const name = profile.name || document.getElementById('p-name')?.value || 'User';
+  const msg = `Hey, please check on me. This is ${name}.`;
+  showToast('success', '💬 Opening SMS', `Check-in message prepared for ${primary ? primary.name : 'primary contact'}`);
+  openSMS(primary?.phone, msg);
+}
+
+function sendLocation() {
+  const primary = getPrimaryContact();
+  const name = profile.name || document.getElementById('p-name')?.value || 'User';
+  showToast('info', '📍 Getting Location', 'Allow location permission if asked');
+  getCurrentLocation((link) => {
+    const msg = `Here is my current location. This is ${name}: ${link}`;
+    showToast('info', '📍 Opening SMS', `Location message prepared for ${primary ? primary.name : 'primary contact'}`);
+    openSMS(primary?.phone, msg);
+  });
+}
+
+function triggerEmergency() {
+  const primary = getPrimaryContact();
+  const name = profile.name || document.getElementById('p-name')?.value || 'User';
+  showToast('danger', '🚨 Emergency Mode', 'Getting location and preparing alert');
+  getCurrentLocation((link) => {
+    const msg = `🚨 EMERGENCY! I need help immediately. This is ${name}. My location: ${link}`;
+    document.getElementById('emergency-msg').innerHTML =
+      `🚨 Emergency SMS prepared for <strong>${primary ? primary.name : 'primary contact'}</strong>.<br>📞 After sending, call the primary contact.`;
+    document.getElementById('emergency-overlay').classList.add('active');
+    openSMS(primary?.phone, msg);
+  });
+}
+
+function dismissEmergency() {
+  document.getElementById('emergency-overlay').classList.remove('active');
+  const primary = getPrimaryContact();
+  if (primary) makeCall(primary.phone);
+}
+
+// ── FLIC / TEST BUTTON ACTIONS ──
+function simulatePress(type) {
+  const visual = document.getElementById('flic-visual');
+  visual.classList.add('flashing');
+  setTimeout(() => visual.classList.remove('flashing'), 600);
+
+  profile = getProfileData();
+  localStorage.setItem('sk_profile', JSON.stringify(profile));
+
+  if (type === 'single') sendCheckIn();
+  else if (type === 'double') sendLocation();
+  else if (type === 'hold') triggerEmergency();
+}
+
+// Flic app can open these URLs:
+// https://YOUR-USERNAME.github.io/Safety-Keychain-App/?action=single
+// https://YOUR-USERNAME.github.io/Safety-Keychain-App/?action=double
+// https://YOUR-USERNAME.github.io/Safety-Keychain-App/?action=hold
+function handleIncomingAction() {
+  const params = new URLSearchParams(window.location.search);
+  const action = params.get('action');
+  if (!action) return;
+  setTimeout(() => {
+    if (action === 'single' || action === 'double' || action === 'hold') simulatePress(action);
+  }, 700);
+}
+
+// ── PROFILE ──
+function restoreProfile() {
+  if (profile.name) document.getElementById('p-name').value = profile.name;
+  if (profile.phone) document.getElementById('p-phone').value = profile.phone;
+  if (profile.address) document.getElementById('p-address').value = profile.address;
+  if (profile.blood) document.getElementById('p-blood').value = profile.blood;
+  if (profile.medical) document.getElementById('p-medical').value = profile.medical;
+  if (profile.ecName) document.getElementById('p-ec-name').value = profile.ecName;
+  if (profile.ecPhone) document.getElementById('p-ec-phone').value = profile.ecPhone;
+}
+
+function getProfileData() {
+  return {
+    name: document.getElementById('p-name').value,
+    phone: document.getElementById('p-phone').value,
+    address: document.getElementById('p-address').value,
+    blood: document.getElementById('p-blood').value,
+    medical: document.getElementById('p-medical').value,
+    ecName: document.getElementById('p-ec-name').value,
+    ecPhone: document.getElementById('p-ec-phone').value,
+  };
+}
+
+function saveProfile() {
+  profile = getProfileData();
+  localStorage.setItem('sk_profile', JSON.stringify(profile));
+  updateQR();
+  showToast('success', '✅ Profile Saved', 'QR code has been updated with your latest info');
+}
+
+// ── QR CODE ──
+function saveQrUrl() {
+  const input = document.getElementById('qr-url');
+  qrUrl = input ? input.value.trim() : qrUrl;
+  localStorage.setItem('sk_qr_url', qrUrl);
+}
+
+function getDefaultQrUrl() {
+  return window.location.origin + window.location.pathname;
+}
+
+function updateQR() {
+  const container = document.getElementById('qr-display');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const input = document.getElementById('qr-url');
+  if (input) qrUrl = input.value.trim();
+  const finalUrl = qrUrl || getDefaultQrUrl();
+
+  try {
+    new QRCode(container, {
+      text: finalUrl,
+      width: 200,
+      height: 200,
+      colorDark: "#000000",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } catch(e) {}
+
+  document.getElementById('qr-info').textContent = qrUrl
+    ? 'Dynamic QR ready — print this once'
+    : 'QR currently opens this app. For true dynamic info, paste a public Google Site/Doc link above.';
+
+  document.getElementById('qr-preview').innerHTML =
+    `<span style="color:var(--text)">QR Destination:</span><br>${finalUrl}<br><br>` +
+    `<span style="color:var(--text)">Important:</span> The printed QR stores only this fixed URL. To update emergency details later, edit the online page at this URL from your phone. Do not encode name/blood/contact directly into the QR.`;
+}
+
+function shareQR() {
+  const finalUrl = qrUrl || getDefaultQrUrl();
+  if (navigator.share) {
+    navigator.share({ title: 'My Safety Keychain QR Link', text: finalUrl });
+  } else {
+    showToast('info', '📋 QR Link', finalUrl);
+  }
+}
+
+// ── CONTACTS ──
+function renderContacts() {
+  const list = document.getElementById('contacts-list');
+  if (contacts.length === 0) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:12px;font-family:Space Mono,monospace;text-align:center;padding:20px 0;">No contacts added yet</div>';
+    return;
+  }
+  list.innerHTML = contacts.map((c, i) => `
+    <div class="contact-item">
+      <div class="contact-avatar">${c.name[0].toUpperCase()}</div>
+      <div class="contact-info">
+        <div class="contact-name">${c.name}</div>
+        <div class="contact-phone">${c.phone}</div>
+      </div>
+      <span class="contact-tag ${c.primary ? '' : 'secondary'}">${c.primary ? 'PRIMARY' : 'BACKUP'}</span>
+      <button class="del-btn" onclick="removeContact(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function addContact() {
+  const name = document.getElementById('c-name').value.trim();
+  const phone = document.getElementById('c-phone').value.trim();
+  if (!name || !phone) { showToast('warning', '⚠️ Missing Info', 'Please enter both name and phone number'); return; }
+  contacts.push({ name, phone, primary: contacts.length === 0 });
+  localStorage.setItem('sk_contacts', JSON.stringify(contacts));
+  document.getElementById('c-name').value = '';
+  document.getElementById('c-phone').value = '';
+  renderContacts();
+  showToast('success', `✅ ${name} Added`, `${phone} will now receive your safety alerts`);
+}
+
+function removeContact(i) {
+  const removed = contacts.splice(i, 1)[0];
+  if (removed.primary && contacts.length > 0) contacts[0].primary = true;
+  localStorage.setItem('sk_contacts', JSON.stringify(contacts));
+  renderContacts();
+  showToast('info', 'Contact Removed', `${removed.name} was removed from your contacts`);
+}
+
+// ── TOAST ──
+function showToast(type, title, msg) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  const icons = { success: '✅', warning: '⚠️', danger: '🚨', info: 'ℹ️' };
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <div class="toast-icon">${icons[type]}</div>
+    <div class="toast-body">
+      <div class="toast-title">${title}</div>
+      <div class="toast-msg">${msg}</div>
+    </div>
+  `;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('removing');
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
+}
+</script>
+</body>
+</html>
